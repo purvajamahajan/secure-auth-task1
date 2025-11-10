@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Auth - Prodigy Task 01</title>
+    <!-- Load Tailwind CSS for modern, responsive styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom Styles to make it look sharp */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0d1117; /* Dark background color */
+        }
+        .card {
+            background-color: #161b22; /* Slightly lighter card background */
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            border: 1px solid #30363d;
+        }
+        .input-field {
+            background-color: #0d1117;
+            border: 1px solid #30363d;
+            color: #c9d1d9;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <!-- Main Application Card -->
+    <div id="app-container" class="card w-full max-w-md p-8 rounded-xl space-y-6">
+
+        <h1 id="header-title" class="text-3xl font-bold text-center text-white mb-6">User Authentication</h1>
+
+        <!-- Message/Error Display Area -->
+        <div id="message-box" class="hidden p-3 rounded-lg text-sm" role="alert"></div>
+
+        <!-- Authentication Form (Login and Signup share this structure) -->
+        <form id="auth-form" class="space-y-4">
+            <div>
+                <label for="username" class="block text-sm font-medium text-gray-400">Username</label>
+                <input type="text" id="username" class="input-field w-full mt-1 p-3 rounded-lg focus:ring-blue-500 focus:border-blue-500" placeholder="Enter your username" required>
+            </div>
+            <div>
+                <label for="password" class="block text-sm font-medium text-gray-400">Password</label>
+                <input type="password" id="password" class="input-field w-full mt-1 p-3 rounded-lg focus:ring-blue-500 focus:border-blue-500" placeholder="Enter your password" required>
+            </div>
+            
+            <button type="submit" id="submit-button" class="w-full py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition duration-150">
+                Log In
+            </button>
+
+            <p class="text-center text-sm">
+                <button type="button" id="toggle-auth" class="text-blue-400 hover:text-blue-300 font-medium transition duration-150">
+                    Don't have an account? Sign Up
+                </button>
+            </p>
+        </form>
+
+        <!-- Protected Content Area (Hidden until logged in) -->
+        <div id="protected-area" class="hidden text-center space-y-6">
+            <h2 class="text-2xl font-bold text-green-400">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 inline-block mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.103a2.007 2.007 0 00-2.156-.375 2.002 2.002 0 00-1.879 2.083 2.008 2.008 0 002.156.375 2.002 2.002 0 001.879-2.083zM12 21a9 9 0 110-18 9 9 0 010 18z" />
+                </svg>
+                Access Granted!
+            </h2>
+            <p class="text-gray-300">Welcome! This is the protected content only visible after successful login.</p>
+            <p class="text-gray-500 text-xs">
+                (Note: Since this is a simple HTML file, the authentication is simulated using browser storage, not a real database.)
+            </p>
+            <button id="logout-button" class="py-2 px-6 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition duration-150">
+                Log Out
+            </button>
+        </div>
+
+    </div>
+
+    <script>
+        // --- Core Authentication Logic ---
+        
+        // Use a simple JSON object in localStorage to store user data (simulated database)
+        const USER_DB = 'auth_users_db';
+        const CURRENT_USER = 'auth_current_user';
+        
+        // DOM Elements
+        const form = document.getElementById('auth-form');
+        const headerTitle = document.getElementById('header-title');
+        const submitButton = document.getElementById('submit-button');
+        const toggleButton = document.getElementById('toggle-auth');
+        const messageBox = document.getElementById('message-box');
+        const protectedArea = document.getElementById('protected-area');
+        const logoutButton = document.getElementById('logout-button');
+        
+        let isLoginMode = true;
+
+        // Utility to handle messages (errors/success)
+        function showMessage(text, isError = false) {
+            messageBox.textContent = text;
+            messageBox.classList.remove('hidden', 'bg-red-900/50', 'bg-green-900/50', 'text-red-300', 'text-green-300');
+            if (isError) {
+                messageBox.classList.add('bg-red-900/50', 'text-red-300');
+            } else {
+                messageBox.classList.add('bg-green-900/50', 'text-green-300');
+            }
+        }
+
+        // Utility to hide message
+        function hideMessage() {
+            messageBox.classList.add('hidden');
+        }
+
+        // Toggles between Login and Sign Up screens
+        toggleButton.addEventListener('click', () => {
+            isLoginMode = !isLoginMode;
+            hideMessage();
+
+            if (isLoginMode) {
+                headerTitle.textContent = 'User Login';
+                submitButton.textContent = 'Log In';
+                toggleButton.textContent = "Don't have an account? Sign Up";
+            } else {
+                headerTitle.textContent = 'User Sign Up';
+                submitButton.textContent = 'Create Account';
+                toggleButton.textContent = "Already have an account? Log In";
+            }
+        });
+
+        // Handle Form Submission (Login or Sign Up)
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            hideMessage();
+
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            // Load existing users or initialize empty object
+            const users = JSON.parse(localStorage.getItem(USER_DB) || '{}');
+
+            if (isLoginMode) {
+                // --- LOGIN LOGIC ---
+                if (users[username] && users[username] === password) {
+                    localStorage.setItem(CURRENT_USER, username);
+                    checkAuthStatus();
+                } else {
+                    showMessage('Login failed: Invalid username or password.', true);
+                }
+            } else {
+                // --- SIGN UP LOGIC ---
+                if (users[username]) {
+                    showMessage('Sign Up failed: Username already exists. Please log in.', true);
+                } else if (password.length < 5) {
+                    showMessage('Sign Up failed: Password must be at least 5 characters.', true);
+                } else {
+                    users[username] = password; // In a real app, this would be a HASHED password!
+                    localStorage.setItem(USER_DB, JSON.stringify(users));
+                    showMessage('Account created successfully! You can now log in.', false);
+                    
+                    // Switch to login mode after successful signup
+                    isLoginMode = true;
+                    toggleButton.click(); // Programmatically click toggle button to switch view
+                }
+            }
+        });
+
+        // Handle Logout
+        logoutButton.addEventListener('click', () => {
+            localStorage.removeItem(CURRENT_USER);
+            checkAuthStatus();
+        });
+
+        // Check and update UI based on authentication state
+        function checkAuthStatus() {
+            const loggedInUser = localStorage.getItem(CURRENT_USER);
+
+            if (loggedInUser) {
+                // Show protected content
+                form.classList.add('hidden');
+                toggleButton.classList.add('hidden');
+                protectedArea.classList.remove('hidden');
+                headerTitle.textContent = `Welcome, ${loggedInUser}!`;
+                hideMessage();
+            } else {
+                // Show login/signup form
+                form.classList.remove('hidden');
+                toggleButton.classList.remove('hidden');
+                protectedArea.classList.add('hidden');
+                headerTitle.textContent = isLoginMode ? 'User Login' : 'User Sign Up';
+            }
+        }
+
+        // Initial check when the page loads
+        document.addEventListener('DOMContentLoaded', checkAuthStatus);
+    </script>
+</body>
+</html>
